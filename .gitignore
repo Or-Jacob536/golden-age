@@ -2,7 +2,8 @@
 
 # dependencies
 node_modules/
-
+.vscode
+/assets
 # Expo
 .expo/
 dist/
@@ -34,5 +35,3 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
-
-app-example
