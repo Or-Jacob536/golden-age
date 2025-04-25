@@ -1,42 +1,59 @@
-import React, { useEffect, useContext } from 'react';
+import React, { useEffect, useContext, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import { ThemeContext } from '../../contexts/ThemeContext';
 import { fetchRestaurantHours, fetchDailyMenu } from '../../store/slices/restaurantSlice';
 import ErrorScreen from '../../components/common/ErrorScreen';
+import { createSelector } from 'reselect';
+
+// Create memoized selectors
+const selectRestaurantState = state => state.restaurant;
+const selectDailyMenu = createSelector(
+  [selectRestaurantState],
+  restaurant => restaurant.dailyMenu
+);
+const selectRestaurantHours = createSelector(
+  [selectRestaurantState],
+  restaurant => restaurant.hours
+);
+const selectLoading = createSelector(
+  [selectRestaurantState],
+  restaurant => restaurant.loading
+);
+const selectError = createSelector(
+  [selectRestaurantState],
+  restaurant => restaurant.error
+);
 
 export default function RestaurantScreen() {
   const { t } = useTranslation();
   const { theme } = useContext(ThemeContext);
   const dispatch = useDispatch();
   
-  const dailyMenu = useSelector(state => state.restaurant.dailyMenu);
-  const restaurantHours = useSelector(state => state.restaurant.hours);
-  const loading = useSelector(state => state.restaurant.loading);
-  const error = useSelector(state => state.restaurant.error);
+  // Use memoized selectors
+  const dailyMenu = useSelector(selectDailyMenu);
+  const restaurantHours = useSelector(selectRestaurantHours);
+  const loading = useSelector(selectLoading);
+  const error = useSelector(selectError);
   
-  const fetchRestaurantData = async () => {
+  const fetchRestaurantData = useCallback(async () => {
     // Fetch today's menu
     await dispatch(fetchDailyMenu());
     
-    // Fetch restaurant hours
+    // Fetch restaurant hours if not already loaded
     if (!restaurantHours) {
       await dispatch(fetchRestaurantHours());
     }
-  };
+  }, [dispatch, restaurantHours]);
   
   useEffect(() => {
     fetchRestaurantData();
-  }, []);
+  }, [fetchRestaurantData]);
   
-  const onRefresh = async () => {
-    await fetchRestaurantData();
-  };
-
-  // Check if restaurant is currently open
-  const isRestaurantOpen = () => {
-    if (!restaurantHours) return false;
+  // Memoize the calculation of restaurant open status
+  const restaurantStatus = useMemo(() => {
+    if (!restaurantHours) return { open: false, nextMeal: null };
     
     const now = new Date();
     const currentHour = now.getHours();
@@ -46,37 +63,37 @@ export default function RestaurantScreen() {
     
     const hoursToCheck = isWeekend ? restaurantHours.weekend : restaurantHours.weekdays;
     
+    // Safety check for missing hours data
+    if (!hoursToCheck) return { open: false, nextMeal: null };
+    
+    // Check if currently open
     for (const mealTime in hoursToCheck) {
-      const openTime = hoursToCheck[mealTime].open.split(':');
-      const closeTime = hoursToCheck[mealTime].close.split(':');
+      if (!hoursToCheck[mealTime] || !hoursToCheck[mealTime].open || !hoursToCheck[mealTime].close) continue;
       
-      const openHour = parseInt(openTime[0]) + (parseInt(openTime[1]) / 60);
-      const closeHour = parseInt(closeTime[0]) + (parseInt(closeTime[1]) / 60);
+      const openTimeParts = hoursToCheck[mealTime].open.split(':');
+      const closeTimeParts = hoursToCheck[mealTime].close.split(':');
+      
+      if (openTimeParts.length !== 2 || closeTimeParts.length !== 2) continue;
+      
+      const openHour = parseInt(openTimeParts[0]) + (parseInt(openTimeParts[1]) / 60);
+      const closeHour = parseInt(closeTimeParts[0]) + (parseInt(closeTimeParts[1]) / 60);
       
       if (currentTime >= openHour && currentTime < closeHour) {
         return { open: true, meal: mealTime };
       }
     }
     
-    return { open: false, nextMeal: getNextMeal() };
-  };
-  
-  const getNextMeal = () => {
-    if (!restaurantHours) return null;
-    
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const currentTime = currentHour + (currentMinutes / 60);
-    const isWeekend = now.getDay() === 5 || now.getDay() === 6; // Friday or Saturday
-    
-    const hoursToCheck = isWeekend ? restaurantHours.weekend : restaurantHours.weekdays;
+    // Find next meal
     let nextMeal = null;
     let nextMealTime = 24;
     
     for (const mealTime in hoursToCheck) {
-      const openTime = hoursToCheck[mealTime].open.split(':');
-      const openHour = parseInt(openTime[0]) + (parseInt(openTime[1]) / 60);
+      if (!hoursToCheck[mealTime] || !hoursToCheck[mealTime].open) continue;
+      
+      const openTimeParts = hoursToCheck[mealTime].open.split(':');
+      if (openTimeParts.length !== 2) continue;
+      
+      const openHour = parseInt(openTimeParts[0]) + (parseInt(openTimeParts[1]) / 60);
       
       if (openHour > currentTime && openHour < nextMealTime) {
         nextMealTime = openHour;
@@ -84,8 +101,19 @@ export default function RestaurantScreen() {
       }
     }
     
-    return nextMeal;
-  };
+    return { open: false, nextMeal };
+  }, [restaurantHours]);
+  
+  // Safely render menu items with null checks
+  const renderMenuItems = useCallback((items, keyPrefix) => {
+    if (!items || items.length === 0) return null;
+    
+    return items.map((item, index) => (
+      <Text key={`${keyPrefix}-${index}`} style={[styles.menuItem, { color: theme.colors.text }]}>
+        • {item}
+      </Text>
+    ));
+  }, [theme.colors.text]);
   
   if (loading) {
     return (
@@ -104,12 +132,10 @@ export default function RestaurantScreen() {
     return (
       <ErrorScreen
         error={error}
-        onRetry={onRefresh}
+        onRetry={fetchRestaurantData}
       />
     );
   }
-  
-  const restaurantStatus = isRestaurantOpen();
   
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -120,7 +146,7 @@ export default function RestaurantScreen() {
       <ScrollView 
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={onRefresh} />
+          <RefreshControl refreshing={loading} onRefresh={fetchRestaurantData} />
         }
       >
         {/* Restaurant Status */}
@@ -147,66 +173,78 @@ export default function RestaurantScreen() {
           <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
             {t('restaurant.hours')}
           </Text>
-          {restaurantHours ? (
+          {restaurantHours && restaurantHours.weekdays && restaurantHours.weekend ? (
             <View>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
                 {t('restaurant.weekdays')}
               </Text>
               <View style={styles.hoursContainer}>
-                <View style={styles.mealTime}>
-                  <Text style={[styles.mealName, { color: theme.colors.text }]}>
-                    {t('restaurant.breakfast')}
-                  </Text>
-                  <Text style={[styles.timeText, { color: theme.colors.text }]}>
-                    {restaurantHours.weekdays.breakfast.open} - {restaurantHours.weekdays.breakfast.close}
-                  </Text>
-                </View>
-                <View style={styles.mealTime}>
-                  <Text style={[styles.mealName, { color: theme.colors.text }]}>
-                    {t('restaurant.lunch')}
-                  </Text>
-                  <Text style={[styles.timeText, { color: theme.colors.text }]}>
-                    {restaurantHours.weekdays.lunch.open} - {restaurantHours.weekdays.lunch.close}
-                  </Text>
-                </View>
-                <View style={styles.mealTime}>
-                  <Text style={[styles.mealName, { color: theme.colors.text }]}>
-                    {t('restaurant.dinner')}
-                  </Text>
-                  <Text style={[styles.timeText, { color: theme.colors.text }]}>
-                    {restaurantHours.weekdays.dinner.open} - {restaurantHours.weekdays.dinner.close}
-                  </Text>
-                </View>
+                {restaurantHours.weekdays.breakfast && (
+                  <View style={styles.mealTime}>
+                    <Text style={[styles.mealName, { color: theme.colors.text }]}>
+                      {t('restaurant.breakfast')}
+                    </Text>
+                    <Text style={[styles.timeText, { color: theme.colors.text }]}>
+                      {restaurantHours.weekdays.breakfast.open} - {restaurantHours.weekdays.breakfast.close}
+                    </Text>
+                  </View>
+                )}
+                {restaurantHours.weekdays.lunch && (
+                  <View style={styles.mealTime}>
+                    <Text style={[styles.mealName, { color: theme.colors.text }]}>
+                      {t('restaurant.lunch')}
+                    </Text>
+                    <Text style={[styles.timeText, { color: theme.colors.text }]}>
+                      {restaurantHours.weekdays.lunch.open} - {restaurantHours.weekdays.lunch.close}
+                    </Text>
+                  </View>
+                )}
+                {restaurantHours.weekdays.dinner && (
+                  <View style={styles.mealTime}>
+                    <Text style={[styles.mealName, { color: theme.colors.text }]}>
+                      {t('restaurant.dinner')}
+                    </Text>
+                    <Text style={[styles.timeText, { color: theme.colors.text }]}>
+                      {restaurantHours.weekdays.dinner.open} - {restaurantHours.weekdays.dinner.close}
+                    </Text>
+                  </View>
+                )}
               </View>
               
               <Text style={[styles.sectionTitle, { color: theme.colors.text, marginTop: 16 }]}>
                 {t('restaurant.weekend')}
               </Text>
               <View style={styles.hoursContainer}>
-                <View style={styles.mealTime}>
-                  <Text style={[styles.mealName, { color: theme.colors.text }]}>
-                    {t('restaurant.breakfast')}
-                  </Text>
-                  <Text style={[styles.timeText, { color: theme.colors.text }]}>
-                    {restaurantHours.weekend.breakfast.open} - {restaurantHours.weekend.breakfast.close}
-                  </Text>
-                </View>
-                <View style={styles.mealTime}>
-                  <Text style={[styles.mealName, { color: theme.colors.text }]}>
-                    {t('restaurant.lunch')}
-                  </Text>
-                  <Text style={[styles.timeText, { color: theme.colors.text }]}>
-                    {restaurantHours.weekend.lunch.open} - {restaurantHours.weekend.lunch.close}
-                  </Text>
-                </View>
-                <View style={styles.mealTime}>
-                  <Text style={[styles.mealName, { color: theme.colors.text }]}>
-                    {t('restaurant.dinner')}
-                  </Text>
-                  <Text style={[styles.timeText, { color: theme.colors.text }]}>
-                    {restaurantHours.weekend.dinner.open} - {restaurantHours.weekend.dinner.close}
-                  </Text>
-                </View>
+                {restaurantHours.weekend.breakfast && (
+                  <View style={styles.mealTime}>
+                    <Text style={[styles.mealName, { color: theme.colors.text }]}>
+                      {t('restaurant.breakfast')}
+                    </Text>
+                    <Text style={[styles.timeText, { color: theme.colors.text }]}>
+                      {restaurantHours.weekend.breakfast.open} - {restaurantHours.weekend.breakfast.close}
+                    </Text>
+                  </View>
+                )}
+                {restaurantHours.weekend.lunch && (
+                  <View style={styles.mealTime}>
+                    <Text style={[styles.mealName, { color: theme.colors.text }]}>
+                      {t('restaurant.lunch')}
+                    </Text>
+                    <Text style={[styles.timeText, { color: theme.colors.text }]}>
+                      {restaurantHours.weekend.lunch.open} - {restaurantHours.weekend.lunch.close}
+                    </Text>
+                  </View>
+                )}
+                {restaurantHours.weekend.dinner && (
+                  <View style={styles.mealTime}>
+                    <Text style={[styles.mealName, { color: theme.colors.text }]}>
+                      {t('restaurant.dinner')}
+                    </Text>
+                    <Text style={[styles.timeText, { color: theme.colors.text }]}>
+                      {restaurantHours.weekend.dinner.open} - {restaurantHours.weekend.dinner.close}
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
           ) : (
@@ -222,7 +260,7 @@ export default function RestaurantScreen() {
             {t('restaurant.todaysMenu')}
           </Text>
           
-          {dailyMenu ? (
+          {dailyMenu && dailyMenu.meals ? (
             <View>
               {dailyMenu.meals.breakfast && (
                 <View style={styles.menuSection}>
@@ -230,42 +268,30 @@ export default function RestaurantScreen() {
                     {t('restaurant.breakfast')}
                   </Text>
                   <View style={styles.menuItems}>
-                    {dailyMenu.meals.breakfast.mainDishes.length > 0 && (
+                    {dailyMenu.meals.breakfast.mainDishes && dailyMenu.meals.breakfast.mainDishes.length > 0 && (
                       <View>
                         <Text style={[styles.menuCategory, { color: theme.colors.text }]}>
                           {t('restaurant.mainDishes')}
                         </Text>
-                        {dailyMenu.meals.breakfast.mainDishes.map((dish, index) => (
-                          <Text key={`breakfast-main-${index}`} style={[styles.menuItem, { color: theme.colors.text }]}>
-                            • {dish}
-                          </Text>
-                        ))}
+                        {renderMenuItems(dailyMenu.meals.breakfast.mainDishes, 'breakfast-main')}
                       </View>
                     )}
                     
-                    {dailyMenu.meals.breakfast.sides.length > 0 && (
+                    {dailyMenu.meals.breakfast.sides && dailyMenu.meals.breakfast.sides.length > 0 && (
                       <View style={{marginTop: 8}}>
                         <Text style={[styles.menuCategory, { color: theme.colors.text }]}>
                           {t('restaurant.sides')}
                         </Text>
-                        {dailyMenu.meals.breakfast.sides.map((dish, index) => (
-                          <Text key={`breakfast-side-${index}`} style={[styles.menuItem, { color: theme.colors.text }]}>
-                            • {dish}
-                          </Text>
-                        ))}
+                        {renderMenuItems(dailyMenu.meals.breakfast.sides, 'breakfast-side')}
                       </View>
                     )}
                     
-                    {dailyMenu.meals.breakfast.drinks.length > 0 && (
+                    {dailyMenu.meals.breakfast.drinks && dailyMenu.meals.breakfast.drinks.length > 0 && (
                       <View style={{marginTop: 8}}>
                         <Text style={[styles.menuCategory, { color: theme.colors.text }]}>
                           {t('restaurant.drinks')}
                         </Text>
-                        {dailyMenu.meals.breakfast.drinks.map((drink, index) => (
-                          <Text key={`breakfast-drink-${index}`} style={[styles.menuItem, { color: theme.colors.text }]}>
-                            • {drink}
-                          </Text>
-                        ))}
+                        {renderMenuItems(dailyMenu.meals.breakfast.drinks, 'breakfast-drink')}
                       </View>
                     )}
                   </View>
@@ -278,42 +304,30 @@ export default function RestaurantScreen() {
                     {t('restaurant.lunch')}
                   </Text>
                   <View style={styles.menuItems}>
-                    {dailyMenu.meals.lunch.mainDishes.length > 0 && (
+                    {dailyMenu.meals.lunch.mainDishes && dailyMenu.meals.lunch.mainDishes.length > 0 && (
                       <View>
                         <Text style={[styles.menuCategory, { color: theme.colors.text }]}>
                           {t('restaurant.mainDishes')}
                         </Text>
-                        {dailyMenu.meals.lunch.mainDishes.map((dish, index) => (
-                          <Text key={`lunch-main-${index}`} style={[styles.menuItem, { color: theme.colors.text }]}>
-                            • {dish}
-                          </Text>
-                        ))}
+                        {renderMenuItems(dailyMenu.meals.lunch.mainDishes, 'lunch-main')}
                       </View>
                     )}
                     
-                    {dailyMenu.meals.lunch.sides.length > 0 && (
+                    {dailyMenu.meals.lunch.sides && dailyMenu.meals.lunch.sides.length > 0 && (
                       <View style={{marginTop: 8}}>
                         <Text style={[styles.menuCategory, { color: theme.colors.text }]}>
                           {t('restaurant.sides')}
                         </Text>
-                        {dailyMenu.meals.lunch.sides.map((dish, index) => (
-                          <Text key={`lunch-side-${index}`} style={[styles.menuItem, { color: theme.colors.text }]}>
-                            • {dish}
-                          </Text>
-                        ))}
+                        {renderMenuItems(dailyMenu.meals.lunch.sides, 'lunch-side')}
                       </View>
                     )}
                     
-                    {dailyMenu.meals.lunch.desserts.length > 0 && (
+                    {dailyMenu.meals.lunch.desserts && dailyMenu.meals.lunch.desserts.length > 0 && (
                       <View style={{marginTop: 8}}>
                         <Text style={[styles.menuCategory, { color: theme.colors.text }]}>
                           {t('restaurant.desserts')}
                         </Text>
-                        {dailyMenu.meals.lunch.desserts.map((dessert, index) => (
-                          <Text key={`lunch-dessert-${index}`} style={[styles.menuItem, { color: theme.colors.text }]}>
-                            • {dessert}
-                          </Text>
-                        ))}
+                        {renderMenuItems(dailyMenu.meals.lunch.desserts, 'lunch-dessert')}
                       </View>
                     )}
                   </View>
@@ -326,42 +340,30 @@ export default function RestaurantScreen() {
                     {t('restaurant.dinner')}
                   </Text>
                   <View style={styles.menuItems}>
-                    {dailyMenu.meals.dinner.mainDishes.length > 0 && (
+                    {dailyMenu.meals.dinner.mainDishes && dailyMenu.meals.dinner.mainDishes.length > 0 && (
                       <View>
                         <Text style={[styles.menuCategory, { color: theme.colors.text }]}>
                           {t('restaurant.mainDishes')}
                         </Text>
-                        {dailyMenu.meals.dinner.mainDishes.map((dish, index) => (
-                          <Text key={`dinner-main-${index}`} style={[styles.menuItem, { color: theme.colors.text }]}>
-                            • {dish}
-                          </Text>
-                        ))}
+                        {renderMenuItems(dailyMenu.meals.dinner.mainDishes, 'dinner-main')}
                       </View>
                     )}
                     
-                    {dailyMenu.meals.dinner.sides.length > 0 && (
+                    {dailyMenu.meals.dinner.sides && dailyMenu.meals.dinner.sides.length > 0 && (
                       <View style={{marginTop: 8}}>
                         <Text style={[styles.menuCategory, { color: theme.colors.text }]}>
                           {t('restaurant.sides')}
                         </Text>
-                        {dailyMenu.meals.dinner.sides.map((dish, index) => (
-                          <Text key={`dinner-side-${index}`} style={[styles.menuItem, { color: theme.colors.text }]}>
-                            • {dish}
-                          </Text>
-                        ))}
+                        {renderMenuItems(dailyMenu.meals.dinner.sides, 'dinner-side')}
                       </View>
                     )}
                     
-                    {dailyMenu.meals.dinner.desserts.length > 0 && (
+                    {dailyMenu.meals.dinner.desserts && dailyMenu.meals.dinner.desserts.length > 0 && (
                       <View style={{marginTop: 8}}>
                         <Text style={[styles.menuCategory, { color: theme.colors.text }]}>
                           {t('restaurant.desserts')}
                         </Text>
-                        {dailyMenu.meals.dinner.desserts.map((dessert, index) => (
-                          <Text key={`dinner-dessert-${index}`} style={[styles.menuItem, { color: theme.colors.text }]}>
-                            • {dessert}
-                          </Text>
-                        ))}
+                        {renderMenuItems(dailyMenu.meals.dinner.desserts, 'dinner-dessert')}
                       </View>
                     )}
                   </View>
@@ -409,6 +411,7 @@ export default function RestaurantScreen() {
   );
 }
 
+// Using the existing styles from your component
 const styles = StyleSheet.create({
   container: {
     flex: 1,

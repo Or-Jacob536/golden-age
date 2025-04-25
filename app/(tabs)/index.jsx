@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -13,6 +13,10 @@ import { fetchMessages } from '../../store/slices/messagesSlice';
 import { router } from 'expo-router';
 import DashboardHeader from '../../components/home/DashboardHeader';
 import EmergencyButton from '../../components/common/EmergencyButton';
+import { selectDailyMenu } from '../../store/slices/restaurantSlice';
+import { selectDailyActivities, selectMyActivities } from '../../store/slices/activitiesSlice';
+import { selectUpcomingAppointments } from '../../store/slices/medicalSlice';
+import { selectMessages, selectUnreadCount } from '../../store/slices/messagesSlice';
 
 export default function HomeScreen() {
   const { t } = useTranslation();
@@ -22,12 +26,13 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const dailyMenu = useSelector(state => state.restaurant.dailyMenu);
-  const activities = useSelector(state => state.activities.dailyActivities?.activities || []);
-  const upcomingAppointments = useSelector(state => state.medical.appointments.upcoming || []);
-  const messages = useSelector(state => state.messages.messages || []);
-  const unreadCount = useSelector(state => state.messages.unreadCount || 0);
-
+  const dailyMenu = useSelector(selectDailyMenu);
+  const dailyActivitiesData = useSelector(selectDailyActivities);
+  const activities = dailyActivitiesData?.activities || [];
+  const upcomingAppointments = useSelector(selectUpcomingAppointments) || [];
+  const messages = useSelector(selectMessages) || [];
+  const unreadCount = useSelector(selectUnreadCount) || 0;
+  
   const fetchHomeData = async () => {
     setLoading(true);
     setError('');
@@ -57,7 +62,7 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const getCurrentMeal = () => {
+  const currentMeal = useMemo(() => {
     if (!dailyMenu || !dailyMenu.meals) return null;
     
     const now = new Date();
@@ -103,9 +108,9 @@ export default function HomeScreen() {
         data: dailyMenu.meals.dinner
       };
     }
-  };
+  }, [dailyMenu, t]);  
 
-  const getUpcomingActivities = () => {
+  const upcomingActivities = useMemo(() => {
     if (!activities || activities.length === 0) return [];
     
     const now = new Date();
@@ -119,11 +124,9 @@ export default function HomeScreen() {
         (activityHour === currentHour && activityMinute > currentMinutes)
       );
     }).slice(0, 3); // Get next 3 upcoming activities
-  };
+  }, [activities]);
 
   const renderMealCard = () => {
-    const currentMeal = getCurrentMeal();
-    
     if (!currentMeal) return null;
     
     return (
@@ -166,7 +169,7 @@ export default function HomeScreen() {
           <Button 
             mode="text"
             onPress={() => router.push('/(tabs)/restaurant')}
-            color={theme.colors.primary}
+            buttonColor={theme.colors.primary}
             labelStyle={styles.buttonLabel}
           >
             {t('home.viewAll')}
@@ -177,8 +180,6 @@ export default function HomeScreen() {
   };
 
   const renderActivitiesCard = () => {
-    const upcoming = getUpcomingActivities();
-    
     return (
       <Card style={[styles.card, { backgroundColor: theme.colors.card }]}>
         <Card.Title 
@@ -189,8 +190,8 @@ export default function HomeScreen() {
           )}
         />
         <Card.Content>
-          {upcoming.length > 0 ? (
-            upcoming.map((activity, index) => (
+          {upcomingActivities.length > 0 ? (
+            upcomingActivities.map((activity, index) => (
               <TouchableOpacity 
                 key={activity.id} 
                 style={styles.activityItem}
@@ -221,7 +222,7 @@ export default function HomeScreen() {
           <Button 
             mode="text"
             onPress={() => router.push('/(tabs)/activities')}
-            color={theme.colors.primary}
+            buttonColor={theme.colors.primary}
             labelStyle={styles.buttonLabel}
           >
             {t('home.viewAll')}
@@ -276,7 +277,7 @@ export default function HomeScreen() {
           <Button 
             mode="text"
             onPress={() => router.push('/(tabs)/medical')}
-            color={theme.colors.primary}
+            buttonColor={theme.colors.primary}
             labelStyle={styles.buttonLabel}
           >
             {t('home.viewAll')}
@@ -315,7 +316,7 @@ export default function HomeScreen() {
           <Button 
             mode="text"
             onPress={() => router.push('/(tabs)/messages')}
-            color={theme.colors.primary}
+            buttonColor={theme.colors.primary}
             labelStyle={styles.buttonLabel}
           >
             {t('home.viewAll')}
@@ -400,6 +401,7 @@ const styles = StyleSheet.create({
   },
   buttonLabel: {
     fontSize: 16,
+    color: '#fff'
   },
   activityItem: {
     flexDirection: 'row',

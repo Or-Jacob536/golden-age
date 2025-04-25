@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { getDailyMenu, getRestaurantHours, getWeeklyMenu } from "../../services/restaurantService";  // Adjust the path as needed
+import { createSelector } from 'reselect';
 
 export const fetchRestaurantHours = createAsyncThunk(
   "restaurant/fetchHours",
@@ -99,5 +100,18 @@ const restaurantSlice = createSlice({
       });
   },
 });
+
+// Add these at the bottom of your file
+const selectRestaurantState = state => state.restaurant;
+
+export const selectDailyMenu = createSelector(
+  [selectRestaurantState],
+  restaurant => restaurant.dailyMenu
+);
+
+export const selectRestaurantHours = createSelector(
+  [selectRestaurantState],
+  restaurant => restaurant.hours
+);
 
 export default restaurantSlice.reducer;

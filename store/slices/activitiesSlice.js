@@ -1,5 +1,6 @@
 // store/slices/activitiesSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSelector } from 'reselect';
 import activitiesService from '../../services/activitiesService';
 
 export const fetchActivities = createAsyncThunk(
@@ -210,6 +211,39 @@ extraReducers: (builder) => {
       state.error = action.payload?.message || 'Failed to fetch my activities';
     });
 },
-});
+})
+
+const selectActivitiesState = state => state.activities;
+
+// Memoized selectors
+export const selectDailyActivities = createSelector(
+  [selectActivitiesState],
+  activities => activities.dailyActivities
+);
+
+export const selectWeeklyActivities = createSelector(
+  [selectActivitiesState],
+  activities => activities.weeklyActivities
+);
+
+export const selectActivityDetails = createSelector(
+  [selectActivitiesState],
+  activities => activities.activityDetails
+);
+
+export const selectMyActivities = createSelector(
+  [selectActivitiesState],
+  activities => activities.myActivities
+);
+
+export const selectActivitiesLoading = createSelector(
+  [selectActivitiesState],
+  activities => activities.loading
+);
+
+export const selectActivitiesError = createSelector(
+  [selectActivitiesState],
+  activities => activities.error
+);;
 
 export default activitiesSlice.reducer;

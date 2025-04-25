@@ -1,4 +1,4 @@
-// store/slices/medicalSlice.js
+import { createSelector } from 'reselect';
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import medicalService from '../../services/medicalService';
 
@@ -99,5 +99,17 @@ extraReducers: (builder) => {
     });
 },
 });
+
+const selectMedicalState = state => state.medical;
+
+export const selectUpcomingAppointments = createSelector(
+  [selectMedicalState],
+  medical => medical.appointments?.upcoming || []
+);
+
+export const selectPastAppointments = createSelector(
+  [selectMedicalState],
+  medical => medical.appointments?.past || []
+);
 
 export default medicalSlice.reducer;

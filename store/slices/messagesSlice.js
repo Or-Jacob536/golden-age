@@ -1,4 +1,4 @@
-// store/slices/messagesSlice.js
+import { createSelector } from 'reselect';
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import messagesService from '../../services/messagesService';
 
@@ -180,5 +180,17 @@ extraReducers: (builder) => {
     });
 },
 });
+
+const selectMessagesState = state => state.messages;
+
+export const selectMessages = createSelector(
+  [selectMessagesState],
+  messages => messages.messages || []
+);
+
+export const selectUnreadCount = createSelector(
+  [selectMessagesState],
+  messages => messages.unreadCount || 0
+);
 
 export default messagesSlice.reducer;
