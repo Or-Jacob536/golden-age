@@ -289,7 +289,6 @@ export default function HomeScreen() {
   const renderMessagesCard = () => {
     return (
       <Card style={[styles.card, { backgroundColor: theme.colors.card }]}>
-        // app/(tabs)/index.js (continued from renderMessagesCard function)
         <Card.Title 
           title={t('home.messages')} 
           titleStyle={[styles.cardTitle, { color: theme.colors.text }]}

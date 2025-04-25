@@ -1,26 +1,10 @@
-// components/restaurant/RestaurantHoursTab.jsx
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  RefreshControl,
-  Image,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Image } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Card, Title, Paragraph, Divider, List } from 'react-native-paper';
 import { FontAwesome5 } from '@expo/vector-icons';
 
-const RestaurantHoursTab = ({
-  restaurantHours,
-  loading,
-  error,
-  refreshing,
-  onRefresh,
-  theme,
-}) => {
+const RestaurantHoursTab = ({ restaurantHours, loading, error, refreshing, onRefresh, theme }) => {
   const { t } = useTranslation();
   
   const renderMealTimings = (timings, isWeekend) => {

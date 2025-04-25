@@ -1,6 +1,5 @@
 // services/medicalService.js
-import api from './api';
-import { API_ENDPOINTS } from './api';
+import api, { API_ENDPOINTS } from './api';
 
 const medicalService = {
 getMedicalAppointments: async () => {

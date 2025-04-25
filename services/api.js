@@ -10,7 +10,7 @@ if (Platform.OS === 'android') {
   API_BASE_URL = 'http://10.0.2.2:3000/api';
 } else if (Platform.OS === 'ios') {
   // Physical devices need your computer's IP
-  API_BASE_URL = 'http://192.168.68.104:3000/api';
+  API_BASE_URL = 'http://192.168.68.118:3000/api';
 }
 
 // Set API base URL in token manager

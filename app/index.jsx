@@ -1,15 +1,10 @@
 import { Redirect } from 'expo-router';
-import { useContext, useEffect } from 'react';
-import { ActivityIndicator, View, Text } from 'react-native';
+import { useContext } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { AuthContext } from '../contexts/AuthContext';
 
 export default function Index() {
   const { isLoggedIn, isLoading } = useContext(AuthContext);
-
-  // Add logging to help debug
-  useEffect(() => {
-    console.log('Index route - Auth state:', { isLoggedIn, isLoading });
-  }, [isLoggedIn, isLoading]);
 
   if (isLoading) {
     return (

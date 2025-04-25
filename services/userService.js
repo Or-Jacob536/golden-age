@@ -1,5 +1,4 @@
-import api from './api';
-import { API_ENDPOINTS } from './api';
+import api, { API_ENDPOINTS } from './api';
 
 /**
  * Service for user-related API operations

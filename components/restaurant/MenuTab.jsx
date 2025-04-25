@@ -1,28 +1,10 @@
-// components/restaurant/MenuTab.jsx
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  RefreshControl,
-  Image,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, Image } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Card, Title, Paragraph, Divider, Button } from 'react-native-paper';
 import { FontAwesome5 } from '@expo/vector-icons';
 import MealSection from './MealSection';
 
-const MenuTab = ({
-  dailyMenu,
-  selectedDate,
-  loading,
-  error,
-  refreshing,
-  onRefresh,
-  theme,
-}) => {
+const MenuTab = ({ dailyMenu, selectedDate, loading, error, refreshing, onRefresh, theme }) => {
   const { t } = useTranslation();
   
   const renderMealSections = () => {
@@ -84,13 +66,14 @@ const MenuTab = ({
       }
     >
       {/* Restaurant Image */}
-      <Card style={[styles.restaurantImageCard, { backgroundColor: theme.colors.card }]}>
-        <Card.Cover
-          source={require('../../assets/images/restaurant.jpg')}
-          style={styles.restaurantImage}
-        />
-      </Card>
-      
+      <View style={[styles.restaurantImageCard, { backgroundColor: theme.colors.card }]}>
+        <Card>
+          <Card.Cover
+            source={require('../../assets/images/restaurant.jpg')}
+            style={styles.restaurantImage}
+          />
+        </Card>
+      </View>
       {/* Menu */}
       <View style={styles.menuContainer}>
         {renderMealSections()}

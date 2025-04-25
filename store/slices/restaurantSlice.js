@@ -1,11 +1,11 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import restaurantService from "../../services/restaurantService";
+import { getDailyMenu, getRestaurantHours, getWeeklyMenu } from "../../services/restaurantService";  // Adjust the path as needed
 
 export const fetchRestaurantHours = createAsyncThunk(
   "restaurant/fetchHours",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await restaurantService.getRestaurantHours();
+      const response = await getRestaurantHours();
       return response;
     } catch (error) {
       return rejectWithValue(
@@ -19,7 +19,7 @@ export const fetchDailyMenu = createAsyncThunk(
   "restaurant/fetchDailyMenu",
   async (date, { rejectWithValue }) => {
     try {
-      const response = await restaurantService.getDailyMenu(date);
+      const response = await getDailyMenu(date);  // Use the named import directly
       return response;
     } catch (error) {
       return rejectWithValue(
@@ -33,7 +33,7 @@ export const fetchWeeklyMenu = createAsyncThunk(
   "restaurant/fetchWeeklyMenu",
   async (startDate, { rejectWithValue }) => {
     try {
-      const response = await restaurantService.getWeeklyMenu(startDate);
+      const response = await getWeeklyMenu(startDate);
       return response;
     } catch (error) {
       return rejectWithValue(

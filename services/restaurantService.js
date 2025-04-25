@@ -1,16 +1,18 @@
-import api from './api';
-import { parseXmlString } from '../lib/utils/xmlUtils';
+import api, { API_ENDPOINTS } from './api';
 
 /**
  * Get restaurant hours
  * @returns {Promise<Object>} - Restaurant hours data
  */
+
 export const getRestaurantHours = async () => {
+  console.log('Service: Requesting restaurant hours');
   try {
-    const response = await api.get('/restaurant/hours');
+    const response = await api.get(API_ENDPOINTS.RESTAURANT_HOURS);
+    console.log('Service: Restaurant hours received');
     return response.data;
   } catch (error) {
-    console.error('Error fetching restaurant hours:', error);
+    console.error('Service: Error fetching restaurant hours:', error);
     throw error;
   }
 };
@@ -20,14 +22,16 @@ export const getRestaurantHours = async () => {
  * @param {string} date - Date in YYYY-MM-DD format
  * @returns {Promise<Object>} - Daily menu data
  */
+
 export const getDailyMenu = async (date) => {
   try {
-    const response = await api.get(`/restaurant/menu`, {
+    const response = await api.get(API_ENDPOINTS.DAILY_MENU, {
       params: { date }
     });
+    console.log('Service: Daily menu response received');
     return response.data;
   } catch (error) {
-    console.error('Error fetching daily menu:', error);
+    console.error('Service: Error fetching daily menu:', error);
     throw error;
   }
 };
@@ -37,14 +41,20 @@ export const getDailyMenu = async (date) => {
  * @param {string} startDate - Start date in YYYY-MM-DD format
  * @returns {Promise<Object>} - Weekly menu data
  */
+
 export const getWeeklyMenu = async (startDate) => {
+  console.log(`Service: Requesting weekly menu starting from: ${startDate || 'this week'}`);
   try {
-    const response = await api.get(`/restaurant/menu/weekly`, {
+    const response = await api.get(API_ENDPOINTS.WEEKLY_MENU, {
       params: { startDate }
     });
+    console.log('Service: Weekly menu response received');
     return response.data;
   } catch (error) {
-    console.error('Error fetching weekly menu:', error);
+    console.error('Service: Error fetching weekly menu:', error);
     throw error;
   }
 };
+
+// Add default export for easier importing in other files
+export default { getRestaurantHours, getDailyMenu, getWeeklyMenu };
